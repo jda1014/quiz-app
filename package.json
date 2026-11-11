@@ -1,0 +1,9 @@
+{
+  "name": "quiz-generator",
+  "version": "1.0.0",
+  "description": "교과서·학습지 기반 수준별 퀴즈 생성기",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}
