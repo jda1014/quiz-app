@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>교과서 · 학습지 맞춤형 퀴즈 생성기</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Pretendard Font CDN -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <style>
+    body {
+      font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-emerald-50 via-sky-50 to-slate-100 min-h-screen text-slate-800 flex flex-col justify-between">
+
+  <main class="max-w-5xl w-full mx-auto px-4 py-8 md:py-12 flex-grow flex flex-col gap-6">
+    
+    <!-- 헤더 -->
+    <header class="text-center space-y-2">
+      <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-emerald-950">
+        📝 교과서 · 학습지 맞춤형 퀴즈 생성기
+      </h1>
+      <p class="text-sm md:text-base text-slate-600">
+        수업 자료 PDF를 올리면 Gemini가 형성평가 및 퀴즈 문제를 자동으로 출제해 드립니다!
+      </p>
+    </header>
+
+    <!-- 업로드 카드 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 space-y-6">
+      
+      <!-- 드래그 앤 드롭 영역 -->
+      <div id="dropZone" class="border-2 border-dashed border-emerald-200 hover:border-emerald-400 bg-emerald-50/40 rounded-xl p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3">
+        <div class="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+          </svg>
+        </div>
+        <div class="space-y-1">
+          <p class="text-sm md:text-base font-medium text-emerald-950">여기를 클릭하거나 PDF 파일을 드래그하여 업로드하세요</p>
+          <p class="text-xs text-slate-500">지원 형식: .pdf (최대 4MB)</p>
+        </div>
+        <input type="file" id="fileInput" accept=".pdf" class="hidden">
+      </div>
+
+      <!-- 선택된 파일명 표시 -->
+      <div id="fileInfoArea" class="hidden flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+        <div class="flex items-center gap-2 overflow-hidden">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
+          <span id="fileName" class="text-sm font-medium text-slate-700 truncate"></span>
+        </div>
+        <button id="removeFileBtn" class="text-xs text-slate-400 hover:text-red-500 transition-colors ml-2 flex-shrink-0">파일 취소</button>
+      </div>
+
+      <!-- 접속 코드 입력칸 (기본 숨김) -->
+      <div id="accessCodeContainer" class="hidden space-y-2 bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <label for="accessCodeInput" class="block text-xs font-semibold text-amber-800">서버 접속 코드 입력</label>
+        <div class="flex gap-2">
+          <input type="password" id="accessCodeInput" placeholder="접속 코드를 입력하세요" class="flex-grow text-sm border border-amber-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+        </div>
+      </div>
+
+      <!-- 분석 버튼 -->
+      <button id="submitBtn" disabled class="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed">
+        ✨ 평가 문항 & 퀴즈 생성하기
+      </button>
+
+    </section>
+
+    <!-- 로딩 표시 -->
+    <div id="loadingArea" class="hidden bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-10 text-center space-y-4 shadow-sm">
+      <div class="inline-block w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-sm font-medium text-emerald-950 animate-pulse">교과서 내용을 분석하여 맞춤형 퀴즈를 출제 중입니다...</p>
+    </div>
+
+    <!-- 오류 박스 -->
+    <div id="errorBox" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-start gap-3 shadow-sm">
+      <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+      </svg>
+      <div id="errorMessage" class="flex-grow font-medium"></div>
+    </div>
+
+    <!-- 결과 영역 -->
+    <section id="resultArea" class="hidden space-y-6 pt-4">
+      
+      <!-- 결과 헤더 및 복사 버튼 -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          🎯 생성된 평가 문항 결과
+        </h2>
+        <button id="copyAllBtn" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer">
+          📋 전체 문제 클립보드 복사하기
+        </button>
+      </div>
+
+      <!-- 카드 1: 객관식 문제 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
+        <div class="bg-amber-500 w-full md:w-3 flex-shrink-0"></div>
+        <div class="p-6 md:p-8 space-y-4 flex-grow">
+          <h3 class="text-base font-bold text-amber-900 flex items-center gap-2">
+            🧠 개념 확인용 객관식 문제
+          </h3>
+          <div id="card1Content" class="space-y-4"></div>
+        </div>
+      </div>
+
+      <!-- 카드 2: 서술형/단답형 문제 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
+        <div class="bg-emerald-600 w-full md:w-3 flex-shrink-0"></div>
+        <div class="p-6 md:p-8 space-y-4 flex-grow">
+          <h3 class="text-base font-bold text-emerald-900 flex items-center gap-2">
+            ✍️ 사고력을 키우는 서술형·단답형 문제
+          </h3>
+          <div id="card2Content" class="space-y-4"></div>
+        </div>
+      </div>
+
+      <!-- 카드 3: 모둠 활동 퀴즈 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
+        <div class="bg-indigo-600 w-full md:w-3 flex-shrink-0"></div>
+        <div class="p-6 md:p-8 space-y-4 flex-grow">
+          <h3 class="text-base font-bold text-indigo-950 flex items-center gap-2">
+            🎮 모둠 활동용 핵심 퀴즈
+          </h3>
+          <div id="card3Content" class="space-y-3"></div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- 토스트 알림 컨테이너 -->
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- 푸터 -->
+  <footer class="text-center py-6 text-xs text-slate-400 border-t border-slate-200/60 mt-12">
+    교과서 · 학습지 맞춤형 퀴즈 생성기 · Powered by Google Gemini
+  </footer>
+
+  <!-- 클라이언트 로직 스크립트 -->
+  <script src="app.js"></script>
+</body>
+</html>
